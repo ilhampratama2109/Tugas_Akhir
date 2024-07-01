@@ -1,8 +1,9 @@
+import time
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 from sklearn.tree import DecisionTreeClassifier
 from collections import defaultdict
-import xgboost as xgb
 from sklearn.tree import DecisionTreeClassifier
 
 # xgb.XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
@@ -13,6 +14,7 @@ class SISA:
         self.shards = shards
         self.slices = slices
         self.models = [DecisionTreeClassifier() for _ in range(self.shards)]
+        self.delete_time = []
 
     def train(self, x: np.ndarray, y: np.ndarray) -> None:
         self.input_shards = np.array_split(x, self.shards)
@@ -39,24 +41,44 @@ class SISA:
 
         return np.array(prediction_results)
 
+    # def delete(self, x: np.ndarray) -> None:
+    #     try:
+    #         nsi = self.input_shards.copy()
+    #         nso = self.output_shards.copy()
+    #         for data in x:
+    #             for i, shard in enumerate(nsi):
+    #                 for j, element in enumerate(shard):
+    #                     if np.array_equal(data, element):
+    #                         nsi[i] = np.delete(nsi[i], j, axis=0)
+    #                         nso[i] = np.delete(nso[i], j)
+    #                         break
+    #         for i in range(len(nsi)):
+    #             if len(self.input_shards[i]) != len(nsi[i]):
+    #                 self.models[i].fit(nsi[i], nso[i])
+    #                 self.input_shards[i] = nsi[i]
+    #                 self.output_shards[i] = nso[i]
+    #     except (TypeError, ValueError) as e:
+    #         print(f"Error occurred: {e}")
     def delete(self, x: np.ndarray) -> None:
         try:
-            nsi = self.input_shards.copy()
-            nso = self.output_shards.copy()
             for data in x:
-                for i, shard in enumerate(nsi):
-                    for j, element in enumerate(shard):
-                        if np.array_equal(data, element):
-                            nsi[i] = np.delete(nsi[i], j, axis=0)
-                            nso[i] = np.delete(nso[i], j)
-                            break
-            for i in range(len(nsi)):
-                if len(self.input_shards[i]) != len(nsi[i]):
-                    self.models[i].fit(nsi[i], nso[i])
-                    self.input_shards[i] = nsi[i]
-                    self.output_shards[i] = nso[i]
-        except (TypeError, ValueError) as e:
-            print(f"Error occurred: {e}")
+                for i, shard in enumerate(self.input_shards):
+                    delete_indices = np.where(np.all(shard == data, axis=1))[0]
+                    if len(delete_indices) > 0:
+                        self.input_shards[i] = np.delete(
+                            self.input_shards[i], delete_indices, axis=0
+                        )
+                        self.output_shards[i] = np.delete(
+                            self.output_shards[i], delete_indices
+                        )
+                        start_time = time.time()
+                        self.models[i].fit(self.input_shards[i], self.output_shards[i])
+                        end_time = time.time() - start_time
+                        self.delete_time.append(end_time)
+        except:
+            print(
+                "salah satu shard datanya sudah habis, silahkan latih ulang model dari awal"
+            )
 
 
 if __name__ == "__main__":

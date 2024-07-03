@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from collections import defaultdict
-from sklearn.tree import DecisionTreeClassifier
 
 # xgb.XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
 
@@ -13,7 +13,11 @@ class SISA:
     def __init__(self, shards=5, slices=5) -> None:
         self.shards = shards
         self.slices = slices
-        self.models = [DecisionTreeClassifier() for _ in range(self.shards)]
+        # self.models = [DecisionTreeClassifier() for _ in range(self.shards)]
+        self.models = [
+            RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42)
+            for _ in range(self.shards)
+        ]
 
     def train(self, x: np.ndarray, y: np.ndarray) -> None:
         self.input_shards = np.array_split(x, self.shards)

@@ -63,22 +63,17 @@ class SISA:
     #     except (TypeError, ValueError) as e:
     #         print(f"Error occurred: {e}")
     def delete(self, x: np.ndarray) -> None:
-        try:
-            for data in x:
-                for i, shard in enumerate(self.input_shards):
-                    delete_indices = np.where(np.all(shard == data, axis=1))[0]
-                    if len(delete_indices) > 0:
-                        self.input_shards[i] = np.delete(
-                            self.input_shards[i], delete_indices, axis=0
-                        )
-                        self.output_shards[i] = np.delete(
-                            self.output_shards[i], delete_indices
-                        )
-                        self.models[i].fit(self.input_shards[i], self.output_shards[i])
-        except:
-            print(
-                "salah satu shard datanya sudah habis, silahkan latih ulang model dari awal"
-            )
+        for data in x:
+            for i, shard in enumerate(self.input_shards):
+                delete_indices = np.where(np.all(shard == data, axis=1))[0]
+                if len(delete_indices) > 0:
+                    self.input_shards[i] = np.delete(
+                        self.input_shards[i], delete_indices, axis=0
+                    )
+                    self.output_shards[i] = np.delete(
+                        self.output_shards[i], delete_indices
+                    )
+                    self.models[i].fit(self.input_shards[i], self.output_shards[i])
 
 
 if __name__ == "__main__":

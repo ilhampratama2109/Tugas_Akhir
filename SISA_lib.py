@@ -10,16 +10,11 @@ from collections import defaultdict
 
 
 class SISA:
-    def __init__(self, shards=5, slices=5) -> None:
+    def __init__(self, shards=5, base_model=RandomForestClassifier()) -> None:
         self.shards = shards
-        self.slices = slices
-        # self.models = [DecisionTreeClassifier() for _ in range(self.shards)]
-        self.models = [
-            RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42)
-            for _ in range(self.shards)
-        ]
+        self.models = [base_model for _ in range(self.shards)]
 
-    def train(self, x: np.ndarray, y: np.ndarray) -> None:
+    def fit(self, x: np.ndarray, y: np.ndarray) -> None:
         self.input_shards = np.array_split(x, self.shards)
         self.output_shards = np.array_split(y, self.shards)
 
@@ -44,6 +39,19 @@ class SISA:
 
         return np.array(prediction_results)
 
+    def delete(self, x: np.ndarray) -> None:
+        for data in x:
+            for i, shard in enumerate(self.input_shards):
+                delete_indices = np.where(np.all(shard == data, axis=1))[0]
+                if len(delete_indices) > 0:
+                    self.input_shards[i] = np.delete(
+                        self.input_shards[i], delete_indices, axis=0
+                    )
+                    self.output_shards[i] = np.delete(
+                        self.output_shards[i], delete_indices
+                    )
+                    self.models[i].fit(self.input_shards[i], self.output_shards[i])
+
     # def delete(self, x: np.ndarray) -> None:
     #     try:
     #         nsi = self.input_shards.copy()
@@ -62,18 +70,6 @@ class SISA:
     #                 self.output_shards[i] = nso[i]
     #     except (TypeError, ValueError) as e:
     #         print(f"Error occurred: {e}")
-    def delete(self, x: np.ndarray) -> None:
-        for data in x:
-            for i, shard in enumerate(self.input_shards):
-                delete_indices = np.where(np.all(shard == data, axis=1))[0]
-                if len(delete_indices) > 0:
-                    self.input_shards[i] = np.delete(
-                        self.input_shards[i], delete_indices, axis=0
-                    )
-                    self.output_shards[i] = np.delete(
-                        self.output_shards[i], delete_indices
-                    )
-                    self.models[i].fit(self.input_shards[i], self.output_shards[i])
 
 
 if __name__ == "__main__":
